@@ -11,7 +11,7 @@
                              [else (loop (cons (consume line) res))])))])
           (loop '()))))))
 
-
+;; find first not-repeated string, it's length is packlen
 (define (resolve packlen)
   (lambda (datastream)
     (define len (string-length datastream))
