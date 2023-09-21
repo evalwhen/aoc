@@ -1,0 +1,14 @@
+* About
+
+  Advent of code 2022 by chez scheme.
+* Run code
+  cd ./day15
+
+  move to Makefile
+
+  SCHEME = scheme --libdirs lib --program solution.ss
+
+  check:
+  $(SCHEME) solution
+
+  .PHONY: check
