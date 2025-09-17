@@ -30,7 +30,8 @@
 
 (define dot?
   (lambda (s i)
-    (char=? (string-ref s i) dot)))
+    (equal? (string-ref s i)
+           dot)))
 
 ;; abc: available blocks count
 ;; c： 移动次数 + 遇到的 dot 次数
@@ -38,25 +39,23 @@
 ;; j: 右边的 index
 (define move
   (lambda (abc)
-    (letrec ((main-loop (lambda (s i j c)
-                          (cond
-                            ((= c abc) s)
-                            ((dot? s j) (main-loop s i (1- j) (1+ c)))
-                            (else (find-left-dot s i j c)))))
-             (find-left-dot (lambda (s i j c)
-                              (cond
-                                ((>= i j) s)
-                                ((dot? s i)
-                                 (swap s i j)
-                                 (main-loop s (1+ i) (1- j) (1+ c)))
-                                (else (find-left-dot s (1+ i) j c))))))
-      (lambda (s i j c) (main-loop s i j c)))))
+    (lambda (s i j c)
+      (cond
+       ((= c abc) s)
+       ((dot? s j) ((move abc) s i (1- j) (1+ c)))
+       ((dot? s i) (begin
+                     (swap s i j)
+                     ((move abc) s (1+ i) (1- j) (1+ c))))
+       (else ((move abc) s (1+ i) j c)))))) ;;TODO: 此时的递归调用，只是寻找下一个 .，不需要前两个检查，写一个辅助函数
 
 ;; abc: available blocks count
 (define abc
   (lambda (s)
-    (let ([c 0])
-      (string-for-each (lambda (e) (when (char=? e dot) (set! c (1+ c)))) s)
+    (let ((c 0))
+      (string-for-each (lambda (e) (if (equal? e dot)
+                                       (set! c (1+ c))
+                                       '()))
+                       s)
       c)))
 
 ;; 来自 https://scheme.com/tspl4/objects.html#./objects:s223
@@ -78,35 +77,47 @@
 ;; 把 string-append 的实现推广到了 expand-dense
 ;; dense-format to expanded format
 ;; 12345 转化成 0..111....22222, 为什么这样转，见 day9.txt
-;; 优化: 合并了 expand-single, 并且在一次遍历中同时生成字符串和计算 dot 的数量。
 (define expand-dense
   (lambda (s)
-    (let f ([i 0] [n 0] [dot-count 0])
-      (if (= i (string-length s))
-          (values (make-string n) dot-count)
-          (let* ([is-odd (odd? i)]
-                 [c (if is-odd #\. (digit->char (/ i 2)))]
-                 [len (char->digit (string-ref s i))]
-                 [next-dot-count (if is-odd (+ dot-count len) dot-count)])
-            (let-values ([(s2 final-dot-count) (f (1+ i) (+ n len) next-dot-count)])
-              (string-fill! s2 c n (+ n len))
-              (values s2 final-dot-count)))))))
+      (let f ([i 0] [n 0])
+        (if (= i (string-length s))
+            (make-string n)
+            (let* ([s1 (expand-single s i)]
+                   [m (string-length s1)]
+                   [s2 (f (1+ i) (+ n m))])
+              (do ([i 0 (1+ i)] [j n (1+ j)])
+                  ((= i m) s2)
+                (string-set! s2 j (string-ref s1 i))))))))
+
+;; 将一个 dense-format 的磁盘状态在 位置 i 上展开，如果 i 偶数，用 i 作为元素，否则以 . 作为元素
+(define expand-single
+  (lambda (s i)
+    (let* ([c (if (odd? i) #\. (digit->char (/ i 2)))]
+           [si (string-ref s i)]
+           [sis (string si)]
+           [sin (string->number sis)]
+           [res (make-string sin)])
+      (do ([i 0 (1+ i)])
+          ((= i sin) res)
+        (string-set! res i c)))))
 
 ;; 练习下用 do 实现
 (define check-sum
   (lambda (s)
     (let ([res 0])
       (do ([i 0 (1+ i)])
-          ((= i (string-length s)) res)
+          ((or (= i (string-length s))))
         (if (not (dot? s i))
-            (set! res (+ res (* i (char->digit (string-ref s i))))))))))
+            (set! res (+ res (* i (char->digit (string-ref s i)))))))
+      res)))
 
+;;TODO: 这里 expand-dense 和 abc 遍历了两遍字符串，如何优化？
 (define solve1
   (lambda (s)
-    (let-values ([(es dot-count) (expand-dense s)])
-      (let* ((mabc (move dot-count))
-             (moved (mabc es 0 (1- (string-length es)) 0)))
-        (check-sum moved)))))
+    (let* ((es (expand-dense s))
+           (mabc (move (abc es)))
+           (moved (mabc es 0 (1- (string-length es)) 0)))
+      (check-sum moved))))
 
 ;; part2
 ;; move-2 将当前磁盘状态 s "00...111...2...333.44.5555.6666.777.888899"，从末尾开始按文件，
@@ -117,14 +128,18 @@
 ;; c 当前积累的连续的文件 block id
 (define move-2
   (lambda (s)
-    (let m ([s s] [i 0] [j (1- (string-length s))] [c 0])
+    (let m ([i 0] [j (1- (string-length s))] [c 0])
       (cond
-       ((< j i) s)
-       ((not (dot? s i)) (m s (1+ i) j c))
-       ((dot? s j) (m s i (1- j) 0))
-       ((and (> j 0) (char=? (string-ref s j) (string-ref s (1- j))))
-        (m s i (1- j) (1+ c)))
-       (else (m (move-f s i j (1+ c)) i (1- j) 0))))))
+       ((= j i) s)
+       ((not (dot? s i)) (m (1+ i) j c)) ;; 获取下一个 dot
+       ((dot? s j) (m i (1- j) 0))
+       ((char=? (string-ref s j)
+                (string-ref s (1- j)))
+        (m i (1- j) (1+ c)))
+       (else (begin
+               (move-f s i j (1+ c)) ;; 从当前的 dot 开始尝试将找到的文件移动到合适的左边的空位
+               (m i (1- j) 0)))
+       ))))
 
 
 ;; move-f 将文件移动到左边合适的空余位置，可以容纳下文件 f,该文件从 s 的序号 i 开始，长度为 c 个block
@@ -151,9 +166,9 @@
 (define solve2
   (lambda (path)
     (let* ((s (read-input-string path))
-           )
-      (let-values ([(es _) (expand-dense s)])
-        (check-sum (move-2 es))))))
+           (es (expand-dense s))
+           (moved (move-2 es)))
+      (check-sum moved))))
 
 ;;tests
 (define move-6 (move 6))
