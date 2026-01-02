@@ -6,7 +6,7 @@
 (define (read-input-string path)
   (call-with-input-file path
     (lambda (p)
-      (get-line p))))
+      (read-line p))))
 
 ;; 0 -> 9 to #\0 -> #\9
 (define digit->char (lambda (i) (integer->char (+ (char->integer #\0) i))))
