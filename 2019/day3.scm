@@ -26,7 +26,7 @@
       (if (= i n)
           p
           (let ([np (move-point p d)])
-            (hashtable-update! s np (lambda (v) (inc v)) 0)
+            (hashtable-update! s np (lambda (v) v) 1)
             (lp (inc i) np))))))
 
 (define parse-step
@@ -96,10 +96,10 @@
               [ht2 (make-hashtable equal-hash equal?)])
 
           (exe-line (get-line ip) ht1)
-          (check-after-line ht1)
+          ;; (check-after-line ht1)
 
           (exe-line (get-line ip) ht2)
-          (check-after-line ht2)
+          ;; (check-after-line ht2)
 
           (merge-hash ht1 ht2)
 
@@ -112,7 +112,7 @@
 (run "day3.input")
 
 ;; TODO:
-;; 1. 高效 hashtable 操作, 比如用 fold
+;; 1. 高效 hashtable 操作
 ;; 2. 合并 hashtable
 ;; 3. 简化代码
 ;; 4. 注意审题
