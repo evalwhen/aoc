@@ -13,6 +13,10 @@
 (define pp pretty-print)
 ;(define gensym gentemp)
 
+(define displayln
+  (lambda (msg)
+    (display msg)
+    (display "\n")))
 
 (define-syntax declare	; Gambit-specific compiler-decl
   (syntax-rules () ((declare . x) (begin #f))))
