@@ -1,24 +1,28 @@
 (load "input-parse.scm")
 
+(define (skip-whitespace port)
+  (let lp ([c (peek-char port)])
+    (cond
+     [(eof-object? c) c]
+     [(char-whitespace? c) (read-char port) (lp (peek-char port))]
+     [else c])))
+
 (define (next-tok port)
-  (if (eof-object? (peek-char port))
-      (read-char port)
-      (let lp ([c (peek-char port)] [acc '()])
-        (cond
-         [(char=? c #\() (begin (read-char port)
-                                'left-paren)]
-         [(char=? c #\)) (if (not (null? acc))
-                             (list->string (reverse acc))
-                             (begin (read-char port)
-                                    'right-paren))]
-         [(char-whitespace? c) (if (> (length acc) 0)
-                                 (begin (read-char port)
-                                        (list->string (reverse acc)))
-                                 (begin (read-char port)
-                                        (lp (peek-char port) '())))]
-         [else (begin
-                 (read-char port)
-                 (lp (peek-char port) (cons c acc)))]))))
+  (skip-whitespace port)
+  (let ([c (peek-char port)])
+    (cond
+     [(eof-object? c) c]
+     [(char=? c #\() (read-char port) 'left-paren]
+     [(char=? c #\)) (read-char port) 'right-paren]
+     [else ;; string
+      (let lp ([acc '()])
+        (let ([c (peek-char port)])
+          (if (or (eof-object? c)
+                  (char-whitespace? c)
+                  (memv c '(#\( #\))))
+              (list->string (reverse acc))
+              (begin (read-char port)
+                     (lp (cons c acc))))))])))
 
 (define (parse-s-expression port fdown fup fvalue seed)
   (letrec ([parse (lambda (tok seed)
