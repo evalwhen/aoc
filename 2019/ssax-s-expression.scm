@@ -63,7 +63,7 @@
 (define (make-parser fdown fup fvalue)
   ;; 此时开头的 ( 必须已经被消耗掉了
   (define (run-pair parent-seed port)
-    ;; 这个 lp 始终是在构建当前层的元素，当它发现达到当前层的结束标志之后，就向上返回，由 fup 结合当前层和上层的 seed,返回给更上层
+    ;; 这个 lp 始终是在构建当前层的元素，当它发现达到当前层的结束标志之后，就向上返回，由 fup 结合当前层和上层的 seed,返回给上层
     (let lp ([current-level-seed (fdown parent-seed)])
         (let ([tok (next-tok port)])
           (cond

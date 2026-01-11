@@ -6,7 +6,7 @@
 (declare (standard-bindings) (extended-bindings))
 
 ;; 用了 next-token, inc 等辅助函数
-(include "./myenv-gambit.scm")
+(include "input-parse.scm")
 
 ;; ==========================================
 ;; 核心逻辑

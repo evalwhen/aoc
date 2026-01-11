@@ -61,7 +61,7 @@
   (lambda (code input)
     (let loop ([i 0])
       (cond
-       ;; [(fx>= i (fxvector-length code)) code]
+       [(fx>= i (fxvector-length code)) code]
        [else
         (let-values ([(opcode modes) (parse-optype (fxvector-ref code i))])
           (cond

@@ -50,16 +50,6 @@
                     (move sp step d s)))))
         ))))
 
-(define (check-after-line s)
-  (let-values ([(ks vs) (hashtable-entries s)])
-    (let lp ([i 0])
-      (cond
-       [(= i (vector-length vs))]
-       [(>= (vector-ref vs i) 2) (begin (hashtable-delete! s (vector-ref ks i))
-                                        (lp (inc i)))]
-       [else (lp (inc i))]
-       ))))
-
 (define (merge-hash h1 h2)
   (let-values ([(ks vs) (hashtable-entries h1)])
     (let lp ([i 0])

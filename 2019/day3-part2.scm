@@ -23,8 +23,8 @@
 ;; s state, hashtable
 (define move
   (lambda (p n m d s)
-    (let lp ([i 0] [p p])
-      (if (= i n)
+    (let lp ([i 1] [p p])
+      (if (> i n)
           p
           (let ([np (move-point p d)])
             (hashtable-update! s np (lambda (v) v) (+ m i))
@@ -56,35 +56,21 @@
 (define (merge-hash h1 h2)
   (let ([h1-keys (hashtable-keys h1)])
     (let lp ([i 0] (acc '()))
-      (displayln i)
-      (displayln h1-keys)
       (cond
        [(= i (vector-length h1-keys)) acc]
        [(hashtable-contains? h2 (vector-ref h1-keys i))
-        (lp (inc i)
-            (cons (+ (hashtable-ref h1 (vector-ref h1-keys i))
-                     (hashtable-ref h2 (vector-ref h1-keys i)))
-                  acc))]
-       [lp (inc i) acc]))))
+        (begin
+          ;; (displayln (vector-ref h1-keys i))
+          ;; (displayln (hashtable-ref h1 (vector-ref h1-keys i) 0))
+          ;; (displayln (hashtable-ref h2 (vector-ref h1-keys i) 0))
+
+          (lp (inc i)
+              (cons (+ (hashtable-ref h1 (vector-ref h1-keys i) 0)
+                       (hashtable-ref h2 (vector-ref h1-keys i) 0))
+                    acc)))]
+       [else (lp (inc i) acc)]))))
 
 
-
-(define (collect s)
-  (let-values ([(ks vs) (hashtable-entries s)])
-    (let lp ([i 0] [c '()])
-      (cond
-       [(= i (vector-length vs)) c]
-       [(>= (vector-ref vs i) 2) (lp (inc i) (cons (vector-ref ks i) c))]
-       [else (lp (inc i) c)]
-       ))))
-
-(define (m-distance  p1 p2)
-  (if (equal? p1 (cons 0 0))
-      122222222222222222
-      (+ (abs (- (car p1)
-                 (car p2)))
-         (abs (- (cdr p1)
-                 (cdr p2))))))
 
 (define run
   (lambda (infile)
@@ -95,11 +81,9 @@
 
           (exe-line (get-line ip) ht1)
 
-          (display (hashtable-keys ht1))
 
           (exe-line (get-line ip) ht2)
 
-          (displayln (hashtable-keys ht2))
 
           (apply min (merge-hash ht1 ht2))
 
