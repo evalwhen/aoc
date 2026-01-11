@@ -11,6 +11,11 @@
 ;; ==========================================
 ;; 核心逻辑
 ;; ==========================================
+;; 1. 整个代码放在一个 fxvector 中, ip 即其 index
+;; 2. parse-optype 返回两个值，第一个为操作码，第二个为 vector, 按顺序对应每个参数的 mode, 这个 vector 的长度对应了参数的个数
+;;
+;;
+
 
 (define (next-token acc delimiters msg p)
   (let loop ((res '()))
@@ -42,8 +47,9 @@
 (define get-parameter-count
   (lambda (c)
     (case c
-      ((1 2) 3)
+      ((1 2 7 8) 3)
       ((3 4) 1)
+      ((5 6) 2)
       ((99) 0)
       (else 0))))
 
@@ -62,6 +68,10 @@
               (vector-set! ps i (fxmodulo modes 10))
               (lp (inc i) (fxquotient modes 10))))))))
 
+;; 根据参数 modes 获取参数值
+;; i 对于当前 ip 指针，它执行当前指令的开头
+;; j 对于第几个参数，从 0 开始
+;; TODO: 应该再加一个参数，用来控制是源，还是目的
 (define get-op-arg
   (lambda (i j code modes)
     ;; fxvector-ref -> vector-ref
@@ -86,17 +96,39 @@
 
 (define exe-instruction
   (lambda (i input code op modes)
+    (display op)
+    (display "\n")
     (case op
+      ;; sum/product
       ((1 2) (exe-sum-product i code op modes))
+      ;; input
       ((3) (begin
              (vector-set! code
                             (vector-ref code (+ 1 i))
                             input)
-             (+ i 2)))
+             (+ i 1 (vector-length modes))))
+      ;; ouput
       ((4) (begin
              (display (get-op-arg i 0 code modes))
              (newline)
-             (+ i 2)))
+             (+ i 1 (vector-length modes))))
+      ;; jump-if-true
+      ((5) (if (not (= 0 (get-op-arg i 0 code modes)))
+               (get-op-arg i 1 code modes)
+               (+ i 1 (vector-length modes))))
+      ((6) (if (= 0 (get-op-arg i 0 code modes))
+               (get-op-arg i 1 code modes)
+               (+ i 1 (vector-length modes))))
+      ((7) (begin (if (< (get-op-arg i 0 code modes)
+                         (get-op-arg i 1 code modes))
+                      (vector-set! code (vector-ref code (+ 3 i)) 1)
+                      (vector-set! code (vector-ref code (+ 3 i)) 0))
+                  (+ i 1 (vector-length modes))))
+      ((8) (begin (if (= (get-op-arg i 0 code modes)
+                         (get-op-arg i 1 code modes))
+                      (vector-set! code (vector-ref code (+ 3 i)) 1)
+                      (vector-set! code (vector-ref code (+ 3 i)) 0))
+                  (+ i 1 (vector-length modes))))
       (else (error "Unknown opcode in exe-instruction" op)))))
 
 (define run
@@ -118,8 +150,11 @@
 ;; 运行
 ;; ==========================================
 
+;; (trace exe-instruction)
+
 (if (file-exists? "day5.input")
     (begin
       (display "Starting run...") (newline)
-      (run (parse-code "day5.input") 1))
+      (run (parse-code "day5.input") 5)
+      )
     (display "Please provide day5.input file."))
