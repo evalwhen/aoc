@@ -5,8 +5,8 @@
 ;; 开启 Gambit 的标准绑定和扩展绑定优化
 (declare (standard-bindings) (extended-bindings))
 
-;; 辅助函数：Gambit 默认没有 inc
-(define (inc x) (fx+ x 1))
+;; 用了 next-token, inc 等辅助函数
+(include "./myenv-gambit.scm")
 
 ;; ==========================================
 ;; 核心逻辑
@@ -16,17 +16,6 @@
 ;;
 ;;
 
-
-(define (next-token acc delimiters msg p)
-  (let loop ((res '()))
-    (let ((c (peek-char p)))
-      (cond
-       ((eof-object? c) (list->string (reverse res)))
-       ((memv c delimiters) (list->string (reverse res)))
-       (else
-        (read-char p)
-        (loop (cons c res)))))))
-
 (define parse-code
   (lambda (infile)
     (call-with-input-file infile
@@ -35,14 +24,13 @@
 
 (define parse-code-helper
   (lambda (p acc)
-    ;; 直接使用 #!eof
-    (let* ((token (next-token '() `(#\, ,#!eof #\newline) "parse code helper" p)))
+    (let* ((token (next-token '() '(#\, *eof* #\newline) "parse code helper" p)))
       (cond
        ((equal? token "") (reverse acc))
-       (else (begin
-               (read-char p)
-               (parse-code-helper p
-                                  (cons (string->number token) acc))))))))
+       (else (begin (read-char p)
+                    (parse-code-helper p
+                                       (cons (string->number token) acc))))))))
+
 
 (define get-parameter-count
   (lambda (c)

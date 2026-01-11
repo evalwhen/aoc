@@ -35,9 +35,9 @@
 ; $Id: input-parse.scm,v 3.11 2004/07/08 19:51:57 oleg Exp oleg $
 
 ;------------------------------------------------------------------------
-(load "myenv-chez.scm")
-(load "char-encoding.scm")
-(load "srfi-13.scm")
+(include "myenv-gambit.scm")
+(include "char-encoding.scm")
+(include "srfi-13.scm")
 
 ; -- procedure+: peek-next-char [PORT]
 ; 	advances to the next character in the PORT and peeks at it.

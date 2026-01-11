@@ -1,4 +1,4 @@
-(load "input-parse.scm")
+(include "input-parse.scm")
 ;; 1. 开启 Inspector 信息生成
 (generate-inspector-information #t)
 
