@@ -1,25 +1,16 @@
 ;; ==========================================
-;; Gambit Scheme 兼容层
+;; Gambit Scheme Intcode VM (Day 5)
 ;; ==========================================
 
+;; 开启 Gambit 的标准绑定和扩展绑定优化
 (declare (standard-bindings) (extended-bindings))
 
-(define *eof* #!eof)
+;; 辅助函数：Gambit 默认没有 inc
+(define (inc x) (fx+ x 1))
 
-(define fx+ +)
-(define fx* *)
-(define fx= =)
-(define fx>= >=)
-(define fxmod modulo)
-(define fx/ quotient)
-(define (inc x) (+ x 1))
-
-(define fxvector-ref vector-ref)
-(define fxvector-set! vector-set!)
-(define fxvector-length vector-length)
-(define list->fxvector list->vector)
-(define make-fxvector make-vector)
-(define (fxvector . args) (apply vector args))
+;; ==========================================
+;; 核心逻辑
+;; ==========================================
 
 (define (next-token acc delimiters msg p)
   (let loop ((res '()))
@@ -31,19 +22,16 @@
         (read-char p)
         (loop (cons c res)))))))
 
-;; ==========================================
-;; 核心逻辑 (已将所有 [] 替换为 ())
-;; ==========================================
-
 (define parse-code
   (lambda (infile)
     (call-with-input-file infile
       (lambda (p)
-        (list->fxvector (parse-code-helper p '()))))))
+        (list->vector (parse-code-helper p '())))))) ;; list->fxvector -> list->vector
 
 (define parse-code-helper
   (lambda (p acc)
-    (let* ((token (next-token '() `(#\, ,*eof* #\newline) "parse code helper" p)))
+    ;; 直接使用 #!eof
+    (let* ((token (next-token '() `(#\, ,#!eof #\newline) "parse code helper" p)))
       (cond
        ((equal? token "") (reverse acc))
        (else (begin
@@ -54,50 +42,55 @@
 (define get-parameter-count
   (lambda (c)
     (case c
-      ((1 2) 3)    ;; <--- 注意这里改成了 (( ))
+      ((1 2) 3)
       ((3 4) 1)
       ((99) 0)
       (else 0))))
 
 (define parse-optype
   (lambda (opcode)
-    (let* ((c (fxmod opcode 100))
+    ;; fxmod -> fxmodulo, fx/ -> fxquotient
+    (let* ((c (fxmodulo opcode 100))
            (pc (get-parameter-count c))
-           (ps (make-fxvector pc))
-           (modes (fx/ opcode 100)))
+           (ps (make-vector pc)) ;; make-fxvector -> make-vector
+           (modes (fxquotient opcode 100)))
       (let lp ((i 0) (modes modes))
         (if (fx= i pc)
             (values c ps)
             (begin
-              (fxvector-set! ps i (fxmod modes 10))
-              (lp (inc i) (fx/ modes 10))))))))
+              ;; fxvector-set! -> vector-set!
+              (vector-set! ps i (fxmodulo modes 10))
+              (lp (inc i) (fxquotient modes 10))))))))
 
 (define get-op-arg
   (lambda (i j code modes)
-    (if (= 0 (fxvector-ref modes j))
-        (fxvector-ref code (fxvector-ref code (+ j i 1)))
-        (fxvector-ref code (+ j i 1)))))
+    ;; fxvector-ref -> vector-ref
+    (if (= 0 (vector-ref modes j))
+        (vector-ref code (vector-ref code (+ j i 1)))
+        (vector-ref code (+ j i 1)))))
 
 (define exe-sum-product
   (lambda (i code op modes)
     (let ((opf (case op
-                 ((1) fx+)  ;; <--- 这里也改成了 (( ))
+                 ((1) fx+)
                  ((2) fx*)
                  (else (error "exe-sum-product unknown op" op)))))
       (begin
-        (fxvector-set! code
-                       (fxvector-ref code (+ 3 i))
+        ;; fxvector-set! -> vector-set!, fxvector-ref -> vector-ref
+        (vector-set! code
+                       (vector-ref code (+ 3 i))
                        (opf (get-op-arg i 0 code modes)
                             (get-op-arg i 1 code modes)))
-        (fx+ i (fxvector-length modes) 1)))))
+        ;; fxvector-length -> vector-length
+        (fx+ i (vector-length modes) 1)))))
 
 (define exe-instruction
   (lambda (i input code op modes)
     (case op
-      ((1 2) (exe-sum-product i code op modes)) ;; <--- 这里也改成了 (( ))
+      ((1 2) (exe-sum-product i code op modes))
       ((3) (begin
-             (fxvector-set! code
-                            (fxvector-ref code (+ 1 i))
+             (vector-set! code
+                            (vector-ref code (+ 1 i))
                             input)
              (+ i 2)))
       ((4) (begin
@@ -110,10 +103,11 @@
   (lambda (code input)
     (let loop ((i 0))
       (cond
-       ((fx>= i (fxvector-length code)) code)
+       ;; fxvector-length -> vector-length
+       ((fx>= i (vector-length code)) code)
        (else
         (call-with-values
-            (lambda () (parse-optype (fxvector-ref code i)))
+            (lambda () (parse-optype (vector-ref code i)))
           (lambda (opcode modes)
             (cond
              ((equal? opcode 99) code)
@@ -127,5 +121,5 @@
 (if (file-exists? "day5.input")
     (begin
       (display "Starting run...") (newline)
-      (display (run (parse-code "day5.input") 1)))
+      (run (parse-code "day5.input") 1))
     (display "Please provide day5.input file."))
