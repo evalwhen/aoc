@@ -88,6 +88,9 @@
 
 ;; data1 values 围绕 key
 ;; data2 key 围绕 value
+;; 方案1: 如下 find-paths 递归寻找从 start 开始的所以路径
+;; 方案2: 从 build-paths 的结果里面，分别找出包含 start 和 end 的 path, 去掉公共字串，它们的长度 + 起来即可,
+;; 为什么这可行呢？因为从题目的规定，每个轨道只能直接环绕一个轨道，这意味着 每条从 COM 到 叶子节点的路径都是唯一存在的
 (define run-part2
   (lambda (data1 data2)
     (let ((start (hash-table-ref/default data2 'YOU 'NO))
@@ -96,17 +99,19 @@
       (if (or (eq? start 'NO)
               (eq? end 'NO))
           (error 'run-part2 "start or end not found")
-          (letrec ((move (lambda (init)
-                           (cond
-                              ((eq? init end) (list (list end)))
-                              (else
-                               (hash-table-set! visited init #t)
-                               (let ((vs (get-vs init)))
-                                 (if (null? vs)
-                                     '(())
-                                     (map (lambda (path)
-                                            (cons init path))
-                                          (apply append (map move vs)))))))))
+          ;; 找出从 init 出发的可能 path, 结尾不一定是 end
+          ;; 之后过滤以下，只拿到
+          (letrec ((find-paths (lambda (init)
+                                 (cond
+                                  ((eq? init end) (list (list end)))
+                                  (else
+                                   (hash-table-set! visited init #t)
+                                   (let ((vs (get-vs init)))
+                                     (if (null? vs)
+                                         '(())
+                                         (map (lambda (path)
+                                                (cons init path))
+                                              (apply append (map find-paths vs)))))))))
                    (get-vs (lambda (star)
                              (filter (lambda (star) (not (hash-table-ref/default visited star #f)))
                                      (if (hash-table-exists? data2 star)
@@ -114,11 +119,11 @@
                                                (hash-table-ref/default data1 star '()))
                                          (hash-table-ref/default data1 star '()))))))
             (- (length (car (filter (lambda (path)
-                                       (or (null? path)
-                                           (and (eq? start (car path))
-                                                (eq? end (last path)))
-                                           ))
-                                     (move start))))
+                                      (or (null? path)
+                                          (and (eq? start (car path))
+                                               (eq? end (last path)))
+                                          ))
+                                    (find-paths start))))
                1))))))
 
 (define data2 (cdr (parse-paths "day6.input")))
