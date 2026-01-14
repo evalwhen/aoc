@@ -6,13 +6,8 @@
 ;;找到满意的之后和 AI 探索
 (import (srfi 69))
 ;; 用了 next-token, inc 等辅助函数
-;; (include "myenv-gambit.scm")
+(include "./myenv-gambit.scm")
 
-
-(define displayln
-  (lambda args
-    (apply display args)
-    (display "\n")))
 
 ;; 方案：
 ;; 从输入构建一个 hashtable, 包含所有数据，values 之间围绕 key
@@ -22,7 +17,7 @@
     (let ((idx (string-contains line ")")))
       (if idx
           (values (substring line 0 idx)
-                  (substring line (+ 1 idx) (string-length line)))
+                  (substring line (inc idx) (string-length line)))
           (error 'pare-line "invalid line" line)))))
 
 (define parse-paths
@@ -118,17 +113,14 @@
                                          (cons (hash-table-ref data2 star)
                                                (hash-table-ref/default data1 star '()))
                                          (hash-table-ref/default data1 star '()))))))
-            (- (length (car (filter (lambda (path)
-                                      (or (null? path)
-                                          (and (eq? start (car path))
-                                               (eq? end (last path)))
-                                          ))
-                                    (find-paths start))))
-               1))))))
+            (dec (length (car (filter (lambda (path)
+                                        (and (eq? start (car path))
+                                             (eq? end (last path))))
+                                      (find-paths start))))))))))
 
 (define data2 (cdr (parse-paths "day6.input")))
 
-;; (display  (run-part2 data data2))
+(displayln  (run-part2 data data2))
 
 
 (define run-part2-v2

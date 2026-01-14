@@ -7,6 +7,11 @@
 ;
 ; $Id: myenv.scm,v 1.23 2004/10/22 22:43:29 oleg Exp oleg $
 
+(define displayln
+  (lambda args
+    (apply display args)
+    (display "\n")))
+
 
 ; assert the truth of an expression (or of a sequence of expressions)
 ;
@@ -110,7 +115,7 @@
 (define nl (string #\newline))
 
 ; Legacy re-direction
-(define-macro (read-line . x) `(read-text-line . ,x))
+;; (define-macro (read-line . x) `(read-text-line . ,x))
 
 ; Some useful increment/decrement operators
 ; Note, ##fixnum prefix is Gambit-specific, it means that the
