@@ -7,7 +7,6 @@
 
 ;; 用了 next-token, inc 等辅助函数
 (include "input-parse.scm")
-
 ;; ==========================================
 ;; 核心逻辑
 ;; ==========================================
@@ -16,7 +15,7 @@
 ;;
 ;;
 
-(define parse-code
+(define load-code
   (lambda (infile)
     (call-with-input-file infile
       (lambda (p)
@@ -83,9 +82,7 @@
         (fx+ i (vector-length modes) 1)))))
 
 (define exe-instruction
-  (lambda (i input code op modes)
-    (display op)
-    (display "\n")
+  (lambda (i input output code op modes)
     (case op
       ;; sum/product
       ((1 2) (exe-sum-product i code op modes))
@@ -93,25 +90,29 @@
       ((3) (begin
              (vector-set! code
                             (vector-ref code (+ 1 i))
-                            input)
+                            (dequeue! input))
              (+ i 1 (vector-length modes))))
       ;; ouput
       ((4) (begin
-             (display (get-op-arg i 0 code modes))
-             (newline)
+             ;; (display (get-op-arg i 0 code modes))
+             ;; (newline)
+             (vector-set! output 0 (get-op-arg i 0 code modes))
              (+ i 1 (vector-length modes))))
       ;; jump-if-true
       ((5) (if (not (= 0 (get-op-arg i 0 code modes)))
                (get-op-arg i 1 code modes)
                (+ i 1 (vector-length modes))))
+      ;; jump-if-false
       ((6) (if (= 0 (get-op-arg i 0 code modes))
                (get-op-arg i 1 code modes)
                (+ i 1 (vector-length modes))))
+      ;; less than
       ((7) (begin (if (< (get-op-arg i 0 code modes)
                          (get-op-arg i 1 code modes))
                       (vector-set! code (vector-ref code (+ 3 i)) 1)
                       (vector-set! code (vector-ref code (+ 3 i)) 0))
                   (+ i 1 (vector-length modes))))
+      ;; equals
       ((8) (begin (if (= (get-op-arg i 0 code modes)
                          (get-op-arg i 1 code modes))
                       (vector-set! code (vector-ref code (+ 3 i)) 1)
@@ -119,8 +120,10 @@
                   (+ i 1 (vector-length modes))))
       (else (error "Unknown opcode in exe-instruction" op)))))
 
-(define run
-  (lambda (code input)
+;; code is a vector
+;; input is a hashtable, key is ip, value is input value
+(define run-code
+  (lambda (code input output)
     (let loop ((i 0))
       (cond
        ;; fxvector-length -> vector-length
@@ -132,7 +135,7 @@
             (cond
              ((equal? opcode 99) code)
              (else
-              (loop (exe-instruction i input code opcode modes)))))))))))
+              (loop (exe-instruction i input output code opcode modes)))))))))))
 
 ;; ==========================================
 ;; 运行
@@ -140,9 +143,12 @@
 
 ;; (trace exe-instruction)
 
-(if (file-exists? "day5.input")
-    (begin
-      (display "Starting run...") (newline)
-      (run (parse-code "day5.input") 5)
-      )
-    (display "Please provide day5.input file."))
+;; (if (file-exists? "day5.input")
+;;     (let ((input (make-queue))
+;;           (output (make-vector 1)))
+;;       (enqueue! input 5)
+;;       (display "Starting run...") (newline)
+;;       (run-code (load-code "day5.input") input output)
+;;       (displayln output)
+;;       )
+;;     (display "Please provide day5.input file."))

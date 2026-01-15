@@ -1,16 +1,34 @@
-; 		   My Standard Scheme "Prelude"
-;
-; This version of the prelude contains several forms and procedures
-; that are specific to a Gambit-C 3.0 system.
-; See myenv-scm.scm, myenv-bigloo.scm, etc. for versions
-; of this prelude that are tuned to other Scheme systems.
-;
-; $Id: myenv.scm,v 1.23 2004/10/22 22:43:29 oleg Exp oleg $
-
+; 		   My Scheme "Prelude"
+;; 大部分 copy 自 https://okmij.org/, tks oleg
 (define displayln
   (lambda args
     (apply display args)
     (display "\n")))
+
+;;
+;; queue
+;; 创建空队列
+(define (make-queue)
+  (let ((end-marker (cons '() '())))
+    (cons end-marker end-marker)))
+
+;; 检查是否为空
+(define (empty-queue? q)
+  (eq? (car q) (cdr q)))
+
+;; 入队 (Enqueue)
+(define (enqueue! q item)
+  (let ((new-cell (cons item '())))
+    (set-cdr! (cdr q) new-cell)
+    (set-cdr! q new-cell)))
+
+;; 出队 (Dequeue)
+(define (dequeue! q)
+  (if (empty-queue? q)
+      (error "Queue is empty")
+      (let ((item (car (cdr (car q)))))
+        (set-car! q (cdr (car q)))
+        item)))
 
 
 ; assert the truth of an expression (or of a sequence of expressions)
