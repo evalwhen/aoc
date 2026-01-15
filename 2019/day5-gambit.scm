@@ -87,11 +87,13 @@
       ;; sum/product
       ((1 2) (exe-sum-product i code op modes))
       ;; input
-      ((3) (begin
-             (vector-set! code
-                            (vector-ref code (+ 1 i))
-                            (dequeue! input))
-             (+ i 1 (vector-length modes))))
+      ((3) (if (empty-queue? input)
+                 'hang
+                 (begin
+                   (vector-set! code
+                                (vector-ref code (+ 1 i))
+                                (dequeue! input))
+                   (+ i 1 (vector-length modes)))))
       ;; ouput
       ((4) (begin
              ;; (display (get-op-arg i 0 code modes))
@@ -133,9 +135,12 @@
             (lambda () (parse-optype (vector-ref code i)))
           (lambda (opcode modes)
             (cond
-             ((equal? opcode 99) code)
+             ((equal? opcode 99) 'DONE)
              (else
-              (loop (exe-instruction i input output code opcode modes)))))))))))
+              (let ((ip (exe-instruction i input output code opcode modes)))
+                (if (eq? ip 'hang)
+                    'hang
+                    (loop ip))))))))))))
 
 ;; ==========================================
 ;; 运行
@@ -143,12 +148,12 @@
 
 ;; (trace exe-instruction)
 
-;; (if (file-exists? "day5.input")
-;;     (let ((input (make-queue))
-;;           (output (make-vector 1)))
-;;       (enqueue! input 5)
-;;       (display "Starting run...") (newline)
-;;       (run-code (load-code "day5.input") input output)
-;;       (displayln output)
-;;       )
-;;     (display "Please provide day5.input file."))
+(if (file-exists? "day5.input")
+    (let ((input (make-queue))
+          (output (make-vector 1)))
+      (enqueue! input 5)
+      (display "Starting run...") (newline)
+      (run-code (load-code "day5.input") input output)
+      (displayln output)
+      )
+    (display "Please provide day5.input file."))

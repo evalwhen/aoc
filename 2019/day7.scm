@@ -56,3 +56,9 @@
 
 
 (displayln (solve-part1 (shuffle '(0 1 2 3 4))))
+
+(define run-feedloop
+  (lambda (codes ps)
+    (let lp ((i 0) (codes codes) (pass 0))
+      (let ((input (make-queue))
+            (output ()))))))
