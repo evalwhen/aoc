@@ -30,6 +30,11 @@
         (set-car! q (cdr (car q)))
         item)))
 
+;; 技巧：(cdr q) 指向队列的最后一个 pair
+(define (peek-queue-last q)
+  (if (empty-queue? q)
+      #f
+      (car (cdr q))))
 
 ; assert the truth of an expression (or of a sequence of expressions)
 ;
