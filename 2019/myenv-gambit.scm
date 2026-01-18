@@ -1,3 +1,5 @@
+(declare (standard-bindings) (extended-bindings))
+
 ; 		   My Scheme "Prelude"
 ;; 大部分 copy 自 https://okmij.org/, tks oleg
 (define displayln
