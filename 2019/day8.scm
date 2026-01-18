@@ -96,7 +96,7 @@
 
                ;; get-pxes-list 将多个行重叠起来，然后获取纵向的相交像素点
                (get-pxes-list (lambda (lines)
-                                (apply map (lambda x x) lines)))
+                                (apply map list lines)))
 
                ;; 先将行排成从上到下，然后压缩同位置的像素点
                (merge-lines (lambda (lines)
@@ -105,14 +105,14 @@
                ;; 先将整个 layer 排列成从上到下， (apply map (lambda x x) layers)
                ;; 然后压缩每个像素点
                (merge-layers (lambda (layers)
-                               (map merge-lines (apply map (lambda x x) layers)))))
+                               (map merge-lines (apply map list layers)))))
         (print-image (merge-layers layers))))))
 
 (define print-image
   (lambda (layer)
-    (map (lambda (line)
-           (map (lambda (c) (display (if (equal? #\0 c) " " "1"))) line)
+    (for-each (lambda (line)
+           (for-each (lambda (c) (display (if (equal? #\0 c) " " "1"))) line)
            (display "\n"))
          layer)))
 
-(displayln (run-part2 "day8.input" 25 6))
+(run-part2 "day8.input" 25 6)
