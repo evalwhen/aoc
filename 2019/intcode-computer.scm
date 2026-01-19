@@ -24,7 +24,7 @@
   (lambda (p acc)
     (let* ((token (next-token '() '(#\, *eof* #\newline) "parse code helper" p)))
       (cond
-       ((equal? token "") (reverse acc))
+       ((equal? token "") (append (reverse acc) (make-list 3000)))
        (else (begin (read-char p)
                     (parse-code-helper p
                                        (cons (string->number token) acc))))))))
@@ -34,7 +34,7 @@
   (lambda (c)
     (case c
       ((1 2 7 8) 3)
-      ((3 4) 1)
+      ((3 4 9) 1)
       ((5 6) 2)
       ((99) 0)
       (else 0))))
@@ -57,32 +57,45 @@
 ;; 根据参数 modes 获取参数值
 ;; i 对于当前 ip 指针，它执行当前指令的开头
 ;; j 对于第几个参数，从 0 开始
+;; base 代表相对位置的参数，基地址
 ;; TODO: 应该再加一个参数，用来控制是源，还是目的
 (define get-op-arg
-  (lambda (i j code modes)
-    ;; fxvector-ref -> vector-ref
-    (if (= 0 (vector-ref modes j))
-        (vector-ref code (vector-ref code (+ j i 1)))
-        (vector-ref code (+ j i 1)))))
+  (lambda (i j code modes base)
+    (case (vector-ref modes j)
+      ((0) (vector-ref code (vector-ref code (+ j i 1))))
+      ((1) (vector-ref code (+ j i 1)))
+      ;; 类似 0 但是地址要加上 base
+      ((2) (vector-ref code
+                       (+ base (vector-ref code (+ j i 1))))))))
+
+(define get-op-arg-dest
+  (lambda (i j code modes base)
+    (case (vector-ref modes j)
+      ((0) (vector-ref code (+ j i 1)))
+      ((1) (vector-ref code (+ j i 1)))
+      ;; 类似 0 但是地址要加上 base
+      ((2) (+ base (vector-ref code (+ j i 1)))))))
+
 
 (define exe-sum-product
-  (lambda (i code op modes)
+  (lambda (i code op modes base)
     (let ((opf (case op
-                 ((1) fx+)
-                 ((2) fx*)
+                 ((1) +)
+                 ((2) *)
                  (else (error "exe-sum-product unknown op" op)))))
       (begin
         ;; fxvector-set! -> vector-set!, fxvector-ref -> vector-ref
         (vector-set! code
-                       (vector-ref code (+ 3 i))
-                       (opf (get-op-arg i 0 code modes)
-                            (get-op-arg i 1 code modes)))
+                       ;; (vector-ref code (+ 3 i))
+                       (get-op-arg-dest i 2 code modes base)
+                       (opf (get-op-arg i 0 code modes base)
+                            (get-op-arg i 1 code modes base)))
         ;; fxvector-length -> vector-length
-        (fx+ i (vector-length modes) 1)))))
+        (+ i (vector-length modes) 1)))))
 
 ;; vm 状态，code 内存，ip 指令指针， input 当前计算机的输入
 ;; 每次计算机返回时，返回新的状态以及返回类型，等待输入，output 指令，halt 指令
-(define-structure vmstate code ip inputs)
+(define-structure vmstate code ip base inputs)
 
 (define append-input
   (lambda (state v)
@@ -95,54 +108,68 @@
   (lambda (state)
     (let ((code (vmstate-code state))
           (ip (vmstate-ip state))
-          (inputs (vmstate-inputs state)))
-      (let loop ((ip ip) (inputs inputs))
-        ;; (displayln ip)
+          (inputs (vmstate-inputs state))
+          (base (vmstate-base state)))
+      (let loop ((ip ip) (base base) (inputs inputs))
         ;; (displayln (vector-ref code ip))
         (cond
-         ((fx>= ip (vector-length code)) (values (make-vmstate code ip inputs) 'wrong-memory 'void))
+         ((fx>= ip (vector-length code)) (values (make-vmstate code ip base inputs) 'wrong-memory 'void))
          (else
           (call-with-values
               (lambda () (parse-optype (vector-ref code ip)))
             (lambda (opcode modes)
               (case opcode
-                ((99) (values (make-vmstate code ip inputs) 'halt 'void))
+                ((99) (values (make-vmstate code ip base inputs) 'halt 'void))
                 ;; sum/product
-                ((1 2) (loop (exe-sum-product ip code opcode modes) inputs))
+                ((1 2) (loop (exe-sum-product ip code opcode modes base) base inputs))
                 ;; input
                 ((3) (if (null? inputs)
-                         (values (make-vmstate code ip inputs) 'input 'void)
+                         (values (make-vmstate code ip base inputs) 'input 'void)
                          (begin
                            (vector-set! code
-                                        (vector-ref code (+ 1 ip))
+                                        ;; (vector-ref code (+ 1 ip))
+                                        (get-op-arg-dest ip 0 code modes base)
                                         (car inputs))
                            (loop (+ ip 1 (vector-length modes))
+                                 base
                                  (cdr inputs)))))
                 ;; ouput
                 ((4) (values (make-vmstate code
                                            (+ ip 1 (vector-length modes))
+                                           base
                                            inputs)
                              'output
-                             (get-op-arg ip 0 code modes)))
+                             (get-op-arg ip 0 code modes base)))
                 ;; jump-if-true
-                ((5) (if (not (= 0 (get-op-arg ip 0 code modes)))
-                         (loop (get-op-arg ip 1 code modes) inputs)
-                         (loop (+ ip 1 (vector-length modes)) inputs)))
+                ((5) (if (not (= 0 (get-op-arg ip 0 code modes base)))
+                         (loop (get-op-arg ip 1 code modes base) base inputs)
+                         (loop (+ ip 1 (vector-length modes)) base inputs)))
                 ;; jump-if-false
-                ((6) (if (= 0 (get-op-arg ip 0 code modes))
-                         (loop (get-op-arg ip 1 code modes) inputs)
-                         (loop  (+ ip 1 (vector-length modes)) inputs)))
+                ((6) (if (= 0 (get-op-arg ip 0 code modes base))
+                         (loop (get-op-arg ip 1 code modes base) base inputs)
+                         (loop  (+ ip 1 (vector-length modes)) base inputs)))
                 ;; less than
-                ((7) (begin (if (< (get-op-arg ip 0 code modes)
-                                   (get-op-arg ip 1 code modes))
-                                (vector-set! code (vector-ref code (+ 3 ip)) 1)
-                                (vector-set! code (vector-ref code (+ 3 ip)) 0))
-                            (loop (+ ip 1 (vector-length modes)) inputs)))
+                ((7) (begin (if (< (get-op-arg ip 0 code modes base)
+                                   (get-op-arg ip 1 code modes base))
+                                ;; (vector-set! code (vector-ref code (+ 3 ip)) 1)
+                                ;; (vector-set! code (vector-ref code (+ 3 ip)) 0)
+                                (vector-set! code (get-op-arg-dest ip 2 code modes base) 1)
+                                (vector-set! code (get-op-arg-dest ip 2 code modes base) 0)
+
+                                )
+                            (loop (+ ip 1 (vector-length modes)) base inputs)))
                 ;; equals
-                ((8) (begin (if (= (get-op-arg ip 0 code modes)
-                                   (get-op-arg ip 1 code modes))
-                                (vector-set! code (vector-ref code (+ 3 ip)) 1)
-                                (vector-set! code (vector-ref code (+ 3 ip)) 0))
-                            (loop (+ ip 1 (vector-length modes)) inputs)))
+                ((8) (begin (if (= (get-op-arg ip 0 code modes base)
+                                   (get-op-arg ip 1 code modes base))
+                                ;; (vector-set! code (vector-ref code (+ 3 ip)) 1)
+                                ;; (vector-set! code (vector-ref code (+ 3 ip)) 0))
+                                (vector-set! code (get-op-arg-dest ip 2 code modes base) 1)
+                                (vector-set! code (get-op-arg-dest ip 2 code modes base) 0))
+
+
+                                (loop (+ ip 1 (vector-length modes)) base inputs)))
+                ((9) (loop (+ ip 1 (vector-length modes))
+                           (+ base (get-op-arg ip 0 code modes base))
+                           inputs))
                 (else (error "Unknown opcode in exe-instruction" op)))))))))))
 

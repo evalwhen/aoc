@@ -21,7 +21,7 @@
 (define init-vm-states
   (lambda (phases)
     (let ((states (map (lambda (p)
-                       (make-vmstate (load-code "./day7.input") 0 (list p)))
+                       (make-vmstate (load-code "./day7.input") 0 0 (list p)))
                      phases)))
       ;; 设置第一台机器的输入为 0, 这里我们不再需要设置状态是因为这一步已经包含在 run-feedloop 中了
       ;; (append-input (car states) 0)
