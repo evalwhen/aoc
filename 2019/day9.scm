@@ -20,3 +20,4 @@
              (lp new-state))))))))
 
 (run-vm-until-done (make-vmstate (load-code "day9.input") 0 0 '(1)))
+(run-vm-until-done (make-vmstate (load-code "day9.input") 0 0 '(2)))
