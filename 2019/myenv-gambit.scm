@@ -38,6 +38,9 @@
       #f
       (car (cdr q))))
 
+(define (queue->list q)
+  (cdr (car q)))
+
 ; assert the truth of an expression (or of a sequence of expressions)
 ;
 ; syntax: assert ?expr ?expr ... [report: ?r-exp ?r-exp ...]
